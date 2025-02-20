@@ -1,6 +1,5 @@
 import pygame
 import random
-import time
 
 # Initialize Pygame
 pygame.init()
@@ -11,7 +10,6 @@ ROAD_WIDTH = 100
 CAR_WIDTH, CAR_HEIGHT = 40, 60
 LANE_WIDTH = ROAD_WIDTH // 2
 FPS = 60
-LIGHT_CYCLE = 5000  # 5 seconds in milliseconds
 
 # Colors
 WHITE = (255, 255, 255)
@@ -55,88 +53,77 @@ class Car:
     def move(self):
         if not self.waiting:
             if self.direction == 'N':
-                if self.lane == 'in':
-                    self.y -= self.speed
-                else:
-                    self.y += self.speed
+                self.y -= self.speed if self.lane == 'in' else -self.speed
             elif self.direction == 'S':
-                if self.lane == 'in':
-                    self.y += self.speed
-                else:
-                    self.y -= self.speed
+                self.y += self.speed if self.lane == 'in' else -self.speed
             elif self.direction == 'E':
-                if self.lane == 'in':
-                    self.x += self.speed
-                else:
-                    self.x -= self.speed
+                self.x += self.speed if self.lane == 'in' else -self.speed
             elif self.direction == 'W':
-                if self.lane == 'in':
-                    self.x -= self.speed
-                else:
-                    self.x += self.speed
+                self.x -= self.speed if self.lane == 'in' else -self.speed
 
     def draw(self, surface):
         pygame.draw.rect(surface, self.color, (self.x, self.y, CAR_WIDTH, CAR_HEIGHT))
 
     def at_intersection(self):
-        # Check if car is near the intersection
         if self.lane == 'in':
-            if self.direction == 'N' and self.y <= HEIGHT//2 + ROAD_WIDTH//2:
+            if self.direction == 'N' and self.y <= HEIGHT // 2 + ROAD_WIDTH // 2:
                 return True
-            elif self.direction == 'S' and self.y >= HEIGHT//2 - ROAD_WIDTH//2:
+            elif self.direction == 'S' and self.y >= HEIGHT // 2 - ROAD_WIDTH // 2:
                 return True
-            elif self.direction == 'E' and self.x >= WIDTH//2 - ROAD_WIDTH//2:
+            elif self.direction == 'E' and self.x >= WIDTH // 2 - ROAD_WIDTH // 2:
                 return True
-            elif self.direction == 'W' and self.x <= WIDTH//2 + ROAD_WIDTH//2:
+            elif self.direction == 'W' and self.x <= WIDTH // 2 + ROAD_WIDTH // 2:
                 return True
         return False
 
 class TrafficLight:
     def __init__(self):
-        self.ns_green = True  # True: N-S green, E-W red; False: E-W green, N-S red
+        self.state = 0  # 0: N-S green, 1: N-S yellow, 2: E-W green, 3: E-W yellow
         self.last_change = pygame.time.get_ticks()
+        self.phase_durations = [4000, 1000, 4000, 1000]  # ms
 
     def update(self):
         current_time = pygame.time.get_ticks()
-        if current_time - self.last_change >= LIGHT_CYCLE:
-            self.ns_green = not self.ns_green
+        elapsed = current_time - self.last_change
+        if elapsed >= self.phase_durations[self.state]:
+            self.state = (self.state + 1) % 4
             self.last_change = current_time
 
     def draw(self, surface):
         light_size = 20
-        ns_color = GREEN if self.ns_green else RED
-        ew_color = RED if self.ns_green else GREEN
+        if self.state == 0:  # N-S green
+            ns_color, ew_color = GREEN, RED
+        elif self.state == 1:  # N-S yellow
+            ns_color, ew_color = YELLOW, RED
+        elif self.state == 2:  # E-W green
+            ns_color, ew_color = RED, GREEN
+        else:  # E-W yellow
+            ns_color, ew_color = RED, YELLOW
         
-        # North lights (left for incoming, right for outgoing)
-        pygame.draw.circle(surface, ns_color, (WIDTH//2 - ROAD_WIDTH//2 - 20, HEIGHT//2 - ROAD_WIDTH//2 - 20), light_size)
-        pygame.draw.circle(surface, ns_color, (WIDTH//2 + ROAD_WIDTH//2 + 20, HEIGHT//2 + ROAD_WIDTH//2 + 20), light_size)
-        # South lights
-        pygame.draw.circle(surface, ns_color, (WIDTH//2 + ROAD_WIDTH//2 + 20, HEIGHT//2 - ROAD_WIDTH//2 - 20), light_size)
-        pygame.draw.circle(surface, ns_color, (WIDTH//2 - ROAD_WIDTH//2 - 20, HEIGHT//2 + ROAD_WIDTH//2 + 20), light_size)
-        # East lights
-        pygame.draw.circle(surface, ew_color, (WIDTH//2 + ROAD_WIDTH//2 + 20, HEIGHT//2 + ROAD_WIDTH//2 + 20), light_size)
-        pygame.draw.circle(surface, ew_color, (WIDTH//2 - ROAD_WIDTH//2 - 20, HEIGHT//2 - ROAD_WIDTH//2 - 20), light_size)
-        # West lights
-        pygame.draw.circle(surface, ew_color, (WIDTH//2 - ROAD_WIDTH//2 - 20, HEIGHT//2 + ROAD_WIDTH//2 + 20), light_size)
-        pygame.draw.circle(surface, ew_color, (WIDTH//2 + ROAD_WIDTH//2 + 20, HEIGHT//2 - ROAD_WIDTH//2 - 20), light_size)
+        # North and South lights
+        pygame.draw.circle(surface, ns_color, (WIDTH // 2 - ROAD_WIDTH // 2 - 20, HEIGHT // 2 - ROAD_WIDTH // 2 - 20), light_size)
+        pygame.draw.circle(surface, ns_color, (WIDTH // 2 + ROAD_WIDTH // 2 + 20, HEIGHT // 2 + ROAD_WIDTH // 2 + 20), light_size)
+        pygame.draw.circle(surface, ns_color, (WIDTH // 2 + ROAD_WIDTH // 2 + 20, HEIGHT // 2 - ROAD_WIDTH // 2 - 20), light_size)
+        pygame.draw.circle(surface, ns_color, (WIDTH // 2 - ROAD_WIDTH // 2 - 20, HEIGHT // 2 + ROAD_WIDTH // 2 + 20), light_size)
+        # East and West lights
+        pygame.draw.circle(surface, ew_color, (WIDTH // 2 + ROAD_WIDTH // 2 + 20, HEIGHT // 2 + ROAD_WIDTH // 2 + 20), light_size)
+        pygame.draw.circle(surface, ew_color, (WIDTH // 2 - ROAD_WIDTH // 2 - 20, HEIGHT // 2 - ROAD_WIDTH // 2 - 20), light_size)
+        pygame.draw.circle(surface, ew_color, (WIDTH // 2 - ROAD_WIDTH // 2 - 20, HEIGHT // 2 + ROAD_WIDTH // 2 + 20), light_size)
+        pygame.draw.circle(surface, ew_color, (WIDTH // 2 + ROAD_WIDTH // 2 + 20, HEIGHT // 2 - ROAD_WIDTH // 2 - 20), light_size)
 
 def draw_intersection(surface):
     surface.fill(WHITE)
-    
-    # Draw roads
-    pygame.draw.rect(surface, GRAY, (0, HEIGHT//2 - ROAD_WIDTH//2, WIDTH, ROAD_WIDTH))  # Horizontal road
-    pygame.draw.rect(surface, GRAY, (WIDTH//2 - ROAD_WIDTH//2, 0, ROAD_WIDTH, HEIGHT))  # Vertical road
-    
-    # Draw lane lines
-    pygame.draw.line(surface, WHITE, (WIDTH//2, HEIGHT//2 - ROAD_WIDTH//2), (WIDTH//2, HEIGHT//2 + ROAD_WIDTH//2), 2)
-    pygame.draw.line(surface, WHITE, (WIDTH//2 - ROAD_WIDTH//2, HEIGHT//2), (WIDTH//2 + ROAD_WIDTH//2, HEIGHT//2), 2)
+    pygame.draw.rect(surface, GRAY, (0, HEIGHT // 2 - ROAD_WIDTH // 2, WIDTH, ROAD_WIDTH))  # Horizontal road
+    pygame.draw.rect(surface, GRAY, (WIDTH // 2 - ROAD_WIDTH // 2, 0, ROAD_WIDTH, HEIGHT))  # Vertical road
+    pygame.draw.line(surface, WHITE, (WIDTH // 2, HEIGHT // 2 - ROAD_WIDTH // 2), (WIDTH // 2, HEIGHT // 2 + ROAD_WIDTH // 2), 2)
+    pygame.draw.line(surface, WHITE, (WIDTH // 2 - ROAD_WIDTH // 2, HEIGHT // 2), (WIDTH // 2 + ROAD_WIDTH // 2, HEIGHT // 2), 2)
 
 def simulate_traffic():
     cars = []
     directions = ['N', 'S', 'E', 'W']
     lanes = ['in', 'out']
-    last_spawn = time.time()
-    spawn_interval = 2  # Seconds between car spawns
+    last_spawn = pygame.time.get_ticks()
+    spawn_interval = 2000  # 2 seconds in ms
     traffic_light = TrafficLight()
     
     running = True
@@ -146,9 +133,9 @@ def simulate_traffic():
                 running = False
         
         # Spawn new cars
-        current_time = time.time()
+        current_time = pygame.time.get_ticks()
         if current_time - last_spawn > spawn_interval:
-            if random.random() < 0.7:  # 70% chance to spawn a car
+            if random.random() < 0.7:
                 direction = random.choice(directions)
                 lane = random.choice(lanes)
                 cars.append(Car(direction, lane))
@@ -157,31 +144,26 @@ def simulate_traffic():
         # Update traffic light
         traffic_light.update()
         
-        # Handle traffic rules with lights
+        # Handle traffic rules
         for car in cars:
-            if car.lane == 'in':  # Only incoming cars respect lights
-                if car.at_intersection():
-                    # Check light state
-                    if (car.direction in ['N', 'S'] and not traffic_light.ns_green) or \
-                       (car.direction in ['E', 'W'] and traffic_light.ns_green):
-                        car.waiting = True
-                    else:
-                        # Check for collisions
-                        can_proceed = True
-                        for other_car in cars:
-                            if other_car != car and not other_car.waiting:
-                                if abs(other_car.x - car.x) < CAR_WIDTH and abs(other_car.y - car.y) < CAR_HEIGHT:
-                                    can_proceed = False
-                                    break
-                        if can_proceed:
-                            car.waiting = False
+            if car.lane == 'in' and car.at_intersection():
+                # Proceed only if light is green and no collision
+                if (car.direction in ['N', 'S'] and traffic_light.state == 0) or \
+                   (car.direction in ['E', 'W'] and traffic_light.state == 2):
+                    can_proceed = True
+                    for other_car in cars:
+                        if other_car != car and not other_car.waiting:
+                            if abs(other_car.x - car.x) < CAR_WIDTH and abs(other_car.y - car.y) < CAR_HEIGHT:
+                                can_proceed = False
+                                break
+                    car.waiting = not can_proceed
+                else:
+                    car.waiting = True
         
         # Update car positions
         for car in cars[:]:
             car.move()
-            # Remove cars that have left the screen
-            if (car.x < -CAR_WIDTH or car.x > WIDTH or 
-                car.y < -CAR_HEIGHT or car.y > HEIGHT):
+            if car.x < -CAR_WIDTH or car.x > WIDTH or car.y < -CAR_HEIGHT or car.y > HEIGHT:
                 cars.remove(car)
         
         # Draw everything
@@ -195,6 +177,5 @@ def simulate_traffic():
     
     pygame.quit()
 
-# Run the simulation
 if __name__ == "__main__":
     simulate_traffic()
