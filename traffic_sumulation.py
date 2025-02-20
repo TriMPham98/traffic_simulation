@@ -53,13 +53,13 @@ class Car:
     def move(self):
         if not self.waiting:
             if self.direction == 'N':
-                self.y -= self.speed if self.lane == 'in' else -self.speed
+                self.y -= self.speed
             elif self.direction == 'S':
-                self.y += self.speed if self.lane == 'in' else -self.speed
+                self.y += self.speed
             elif self.direction == 'E':
-                self.x += self.speed if self.lane == 'in' else -self.speed
+                self.x += self.speed
             elif self.direction == 'W':
-                self.x -= self.speed if self.lane == 'in' else -self.speed
+                self.x -= self.speed
 
     def draw(self, surface):
         pygame.draw.rect(surface, self.color, (self.x, self.y, CAR_WIDTH, CAR_HEIGHT))
@@ -153,18 +153,19 @@ def simulate_traffic():
                        (car.direction in ['E', 'W'] and traffic_light.state != 2):
                         car.waiting = True  # Light is not green, so wait
                     else:
-                        # Light is green, check for collision
+                        # Light is green, check for collision with perpendicular traffic
                         can_proceed = True
+                        perpendicular_dirs = {'N': ['E', 'W'], 'S': ['E', 'W'], 'E': ['N', 'S'], 'W': ['N', 'S']}
                         for other_car in cars:
-                            if other_car != car and not other_car.waiting:
+                            if other_car != car and not other_car.waiting and other_car.direction in perpendicular_dirs[car.direction]:
                                 if abs(other_car.x - car.x) < CAR_WIDTH and abs(other_car.y - car.y) < CAR_HEIGHT:
                                     can_proceed = False
                                     break
-                        car.waiting = not can_proceed  # Wait if collision, proceed if clear
+                        car.waiting = not can_proceed
                 else:
                     # Not at intersection, so move towards it
                     car.waiting = False
-            # 'out' cars keep waiting = False (set at initialization, no need to change)
+            # 'out' cars keep waiting = False
         
         # Update car positions
         for car in cars[:]:
