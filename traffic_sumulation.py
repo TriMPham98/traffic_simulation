@@ -146,19 +146,25 @@ def simulate_traffic():
         
         # Handle traffic rules
         for car in cars:
-            if car.lane == 'in' and car.at_intersection():
-                # Proceed only if light is green and no collision
-                if (car.direction in ['N', 'S'] and traffic_light.state == 0) or \
-                   (car.direction in ['E', 'W'] and traffic_light.state == 2):
-                    can_proceed = True
-                    for other_car in cars:
-                        if other_car != car and not other_car.waiting:
-                            if abs(other_car.x - car.x) < CAR_WIDTH and abs(other_car.y - car.y) < CAR_HEIGHT:
-                                can_proceed = False
-                                break
-                    car.waiting = not can_proceed
+            if car.lane == 'in':
+                if car.at_intersection():
+                    # Check traffic light state
+                    if (car.direction in ['N', 'S'] and traffic_light.state != 0) or \
+                       (car.direction in ['E', 'W'] and traffic_light.state != 2):
+                        car.waiting = True  # Light is not green, so wait
+                    else:
+                        # Light is green, check for collision
+                        can_proceed = True
+                        for other_car in cars:
+                            if other_car != car and not other_car.waiting:
+                                if abs(other_car.x - car.x) < CAR_WIDTH and abs(other_car.y - car.y) < CAR_HEIGHT:
+                                    can_proceed = False
+                                    break
+                        car.waiting = not can_proceed  # Wait if collision, proceed if clear
                 else:
-                    car.waiting = True
+                    # Not at intersection, so move towards it
+                    car.waiting = False
+            # 'out' cars keep waiting = False (set at initialization, no need to change)
         
         # Update car positions
         for car in cars[:]:
