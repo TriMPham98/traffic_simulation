@@ -10,6 +10,7 @@ WIDTH, HEIGHT = 800, 800
 ROAD_WIDTH = 100
 CAR_WIDTH, CAR_HEIGHT = 40, 60
 FPS = 60
+LIGHT_CYCLE = 5000  # 5 seconds in milliseconds
 
 # Colors
 WHITE = (255, 255, 255)
@@ -18,17 +19,17 @@ RED = (255, 0, 0)
 BLUE = (0, 0, 255)
 GREEN = (0, 255, 0)
 YELLOW = (255, 255, 0)
+BLACK = (0, 0, 0)
 
 # Set up display
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
-pygame.display.set_caption("4-Way Stop Traffic Simulation")
+pygame.display.set_caption("4-Way Stop Traffic Simulation with Lights")
 clock = pygame.time.Clock()
 
 class Car:
     def __init__(self, direction):
         self.direction = direction  # 'N', 'S', 'E', 'W'
         self.speed = 2
-        self.arrival_time = time.time()
         self.waiting = True
         
         # Initial positions based on direction
@@ -63,25 +64,45 @@ class Car:
     def draw(self, surface):
         pygame.draw.rect(surface, self.color, (self.x, self.y, CAR_WIDTH, CAR_HEIGHT))
 
+class TrafficLight:
+    def __init__(self):
+        self.ns_green = True  # True: N-S green, E-W red; False: E-W green, N-S red
+        self.last_change = pygame.time.get_ticks()
+
+    def update(self):
+        current_time = pygame.time.get_ticks()
+        if current_time - self.last_change >= LIGHT_CYCLE:
+            self.ns_green = not self.ns_green
+            self.last_change = current_time
+
+    def draw(self, surface):
+        light_size = 20
+        # N-S lights
+        ns_color = GREEN if self.ns_green else RED
+        ew_color = RED if self.ns_green else GREEN
+        
+        # North light
+        pygame.draw.circle(surface, ns_color, (WIDTH//2 - ROAD_WIDTH//2 - 20, HEIGHT//2 - ROAD_WIDTH//2 - 20), light_size)
+        # South light
+        pygame.draw.circle(surface, ns_color, (WIDTH//2 + ROAD_WIDTH//2 + 20, HEIGHT//2 + ROAD_WIDTH//2 + 20), light_size)
+        # East light
+        pygame.draw.circle(surface, ew_color, (WIDTH//2 + ROAD_WIDTH//2 + 20, HEIGHT//2 - ROAD_WIDTH//2 - 20), light_size)
+        # West light
+        pygame.draw.circle(surface, ew_color, (WIDTH//2 - ROAD_WIDTH//2 - 20, HEIGHT//2 + ROAD_WIDTH//2 + 20), light_size)
+
 def draw_intersection(surface):
     surface.fill(WHITE)
     
     # Draw roads
     pygame.draw.rect(surface, GRAY, (0, HEIGHT//2 - ROAD_WIDTH//2, WIDTH, ROAD_WIDTH))  # Horizontal road
     pygame.draw.rect(surface, GRAY, (WIDTH//2 - ROAD_WIDTH//2, 0, ROAD_WIDTH, HEIGHT))  # Vertical road
-    
-    # Draw stop lines
-    line_thickness = 5
-    pygame.draw.rect(surface, WHITE, (WIDTH//2 - ROAD_WIDTH//2 - 50, HEIGHT//2 - line_thickness//2, 50, line_thickness))  # Left
-    pygame.draw.rect(surface, WHITE, (WIDTH//2 + ROAD_WIDTH//2, HEIGHT//2 - line_thickness//2, 50, line_thickness))      # Right
-    pygame.draw.rect(surface, WHITE, (WIDTH//2 - line_thickness//2, HEIGHT//2 - ROAD_WIDTH//2 - 50, line_thickness, 50))  # Top
-    pygame.draw.rect(surface, WHITE, (WIDTH//2 - line_thickness//2, HEIGHT//2 + ROAD_WIDTH//2, line_thickness, 50))      # Bottom
 
 def simulate_traffic():
     cars = []
     directions = ['N', 'S', 'E', 'W']
     last_spawn = time.time()
     spawn_interval = 2  # Seconds between car spawns
+    traffic_light = TrafficLight()
     
     running = True
     while running:
@@ -97,22 +118,24 @@ def simulate_traffic():
                 cars.append(Car(direction))
             last_spawn = current_time
         
-        # Handle traffic rules
-        if cars:
-            # Find earliest arrival time among waiting cars
-            waiting_cars = [car for car in cars if car.waiting]
-            if waiting_cars:
-                earliest_car = min(waiting_cars, key=lambda x: x.arrival_time)
-                # Check if it's safe to proceed (no cars in intersection from other directions)
-                can_proceed = True
-                for car in cars:
-                    if car != earliest_car and not car.waiting:
-                        if (earliest_car.direction in ['N', 'S'] and car.direction in ['E', 'W']) or \
-                           (earliest_car.direction in ['E', 'W'] and car.direction in ['N', 'S']):
-                            can_proceed = False
-                            break
-                if can_proceed:
-                    earliest_car.waiting = False
+        # Update traffic light
+        traffic_light.update()
+        
+        # Handle traffic rules with lights
+        for car in cars:
+            if car.waiting:
+                # Check if car can proceed based on light
+                if (car.direction in ['N', 'S'] and traffic_light.ns_green) or \
+                   (car.direction in ['E', 'W'] and not traffic_light.ns_green):
+                    # Check if intersection is clear
+                    can_proceed = True
+                    for other_car in cars:
+                        if other_car != car and not other_car.waiting:
+                            if abs(other_car.x - car.x) < CAR_WIDTH and abs(other_car.y - car.y) < CAR_HEIGHT:
+                                can_proceed = False
+                                break
+                    if can_proceed:
+                        car.waiting = False
         
         # Update car positions
         for car in cars[:]:
@@ -124,6 +147,7 @@ def simulate_traffic():
         
         # Draw everything
         draw_intersection(screen)
+        traffic_light.draw(screen)
         for car in cars:
             car.draw(screen)
         
